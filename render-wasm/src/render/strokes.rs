@@ -339,7 +339,6 @@ fn draw_image_stroke_in_container(
             draw_stroke_on_rect(canvas, stroke, rect, &outer_rect, corners, svg_attrs)
         }
         Kind::Circle(rect) => draw_stroke_on_circle(canvas, stroke, rect, &outer_rect, svg_attrs),
-        Kind::SVGRaw(_) => todo!(),
         Kind::Path(p) | Kind::Bool(_, p) => {
             let mut path = p.to_skia_path();
             path.transform(&path_transform.unwrap());
@@ -358,6 +357,7 @@ fn draw_image_stroke_in_container(
                 svg_attrs,
             );
         }
+        Kind::SVGRaw(_) | Kind::Group(_) => todo!()
     }
     // Draw the image. We are using now the SrcIn blend mode, so the rendered piece of image will the area of the stroke over the image.
     let mut image_paint = skia::Paint::default();
@@ -412,7 +412,7 @@ pub fn render(render_state: &mut RenderState, shape: &Shape, stroke: &Stroke) {
                     svg_attrs,
                 );
             }
-            Kind::SVGRaw(_) => todo!(),
+            Kind::SVGRaw(_) | Kind::Group(_) => todo!(),
         }
     }
 }

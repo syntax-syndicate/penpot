@@ -77,6 +77,7 @@ fn draw_image_fill_in_container(
             canvas.clip_rect(container, skia::ClipOp::Intersect, true);
         }
         Kind::Bool(_, _) => todo!(),
+        Kind::Group(_) => todo!(),
     }
 
     // Draw the image with the calculated destination rectangle

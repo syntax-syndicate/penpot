@@ -10,6 +10,7 @@ mod bools;
 mod fills;
 mod matrix;
 mod paths;
+mod groups;
 mod strokes;
 mod svgraw;
 
@@ -17,6 +18,7 @@ pub use blurs::*;
 pub use bools::*;
 pub use fills::*;
 use matrix::*;
+pub use groups::*;
 pub use paths::*;
 pub use strokes::*;
 pub use svgraw::*;
@@ -31,6 +33,7 @@ pub enum Kind {
     Path(Path),
     Bool(BoolType, Path),
     SVGRaw(SVGRaw),
+    Group(Group),
 }
 
 pub type Color = skia::Color;
@@ -206,7 +209,7 @@ impl Shape {
             Kind::Path(_) => {
                 self.set_svg_attr(name, value);
             }
-            Kind::Rect(_, _) | Kind::Circle(_) | Kind::SVGRaw(_) | Kind::Bool(_, _) => todo!(),
+            Kind::Rect(_, _) | Kind::Circle(_) | Kind::SVGRaw(_) | Kind::Bool(_, _) | Kind::Group(_) => todo!(),
         };
     }
 
