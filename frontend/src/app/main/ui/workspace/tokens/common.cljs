@@ -78,10 +78,17 @@
         on-open (mf/use-fn #(reset! open? true))
         on-close (mf/use-fn #(reset! open? false))
         on-toggle (mf/use-fn #(swap! open? not))]
+
+    (mf/use-effect
+      (mf/deps open?)
+      (fn []
+        (js/console.log "Dropdown open state:" @open?)))
+
     {:dropdown-open? @open?
      :on-open-dropdown on-open
      :on-close-dropdown on-close
      :on-toggle-dropdown on-toggle}))
+
 
 ;; Components ------------------------------------------------------------------
 

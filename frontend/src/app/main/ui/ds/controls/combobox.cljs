@@ -239,7 +239,8 @@
                 :on-change on-input-change
                 :on-key-down on-key-down}]]
 
-      [:> :button {:tab-index "-1"
+      [:> :button {:type "button"
+                   :tab-index "-1"
                    :aria-expanded open
                    :aria-controls listbox-id
                    :class (stl/css :button-toggle-list)

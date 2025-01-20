@@ -16,6 +16,7 @@
    [app.main.ui.components.radio-buttons :refer [radio-button radio-buttons]]
    [app.main.ui.ds.buttons.button :refer [button*]]
    [app.main.ui.ds.buttons.icon-button :refer [icon-button*]]
+   [app.main.ui.ds.controls.combobox :refer [combobox*]]
    [app.main.ui.ds.foundations.assets.icon :refer [icon*] :as ic]
    [app.main.ui.ds.foundations.typography.heading :refer [heading*]]
    [app.main.ui.ds.foundations.typography.text :refer [text*]]
@@ -160,8 +161,20 @@
         group-input-ref (mf/use-ref)
         on-update-group (partial on-change-field :group)
         on-update-name (partial on-change-field :name)]
+
     [:div {:class (stl/css :edit-theme-inputs-wrapper)}
+     [:p "Dropdown open: " (str dropdown-open?)]
      [:div {:class (stl/css :group-input-wrapper)}
+     [:> combobox* {:id ::groups-dropdown
+                    :options (clj->js (map (fn [group]
+                                     {:label group
+                                     :id group})
+                                  theme-groups))
+                    :on-change (fn [value]
+                                 (js/console.log "value " value)
+                                 (set! (.-value (mf/ref-val group-input-ref)) value)
+                                 (on-update-group value))}]
+
       (when dropdown-open?
         [:& wtco/dropdown-select {:id ::groups-dropdown
                                   :shortcuts-key ::groups-dropdown
@@ -170,6 +183,7 @@
                                                    :value group})
                                                 theme-groups)
                                   :on-select (fn [{:keys [value]}]
+                                               (js/console.log value)
                                                (set! (.-value (mf/ref-val group-input-ref)) value)
                                                (on-update-group value))
                                   :on-close on-close-dropdown}])
@@ -283,6 +297,7 @@
                            (update :description str/trim))]
              (when-not (str/empty? (:name theme))
                (on-submit theme)))
+           (js/console.log "aa")
            (on-back)))
 
         close-modal
