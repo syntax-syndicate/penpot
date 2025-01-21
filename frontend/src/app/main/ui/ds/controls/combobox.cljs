@@ -56,6 +56,7 @@
 
 (def ^:private schema:combobox
   [:map
+   [:id {:optional true} :string]
    [:options [:vector {:min 1} schema:combobox-option]]
    [:class {:optional true} :string]
    [:disabled {:optional true} :boolean]
@@ -66,7 +67,7 @@
 (mf/defc combobox*
   {::mf/props :obj
    ::mf/schema schema:combobox}
-  [{:keys [options class disabled has-error default-selected on-change] :rest props}]
+  [{:keys [id options class disabled has-error default-selected on-change] :rest props}]
   (let [open* (mf/use-state false)
         open  (deref open*)
 
@@ -226,8 +227,10 @@
          [:> icon* {:icon-id icon
                     :size "s"
                     :aria-hidden true}])
-       [:input {:type "text"
+       [:input {:id id
+                :type "text"
                 :role "combobox"
+                :autoComplete "off"
                 :aria-autocomplete "both"
                 :aria-expanded open
                 :aria-controls listbox-id

@@ -17,6 +17,8 @@
    [app.main.ui.ds.buttons.button :refer [button*]]
    [app.main.ui.ds.buttons.icon-button :refer [icon-button*]]
    [app.main.ui.ds.controls.combobox :refer [combobox*]]
+   [app.main.ui.ds.controls.input :refer [input*]]
+   [app.main.ui.workspace.tokens.components.controls.input-tokens :refer [input-tokens*]]
    [app.main.ui.ds.foundations.assets.icon :refer [icon*] :as ic]
    [app.main.ui.ds.foundations.typography.heading :refer [heading*]]
    [app.main.ui.ds.foundations.typography.text :refer [text*]]
@@ -155,54 +157,41 @@
                    :on-click create-theme}
        (tr "workspace.token.create-theme-title")]]]))
 
+;; todo: follow & delete dropdown-open? on-close-dropdown on-toggle-dropdown]
+;; todo: translations
+;; todo group with space
 (mf/defc theme-inputs
   [{:keys [theme dropdown-open? on-close-dropdown on-toggle-dropdown on-change-field]}]
   (let [theme-groups (mf/deref refs/workspace-token-theme-groups)
-        group-input-ref (mf/use-ref)
+        theme-name-ref (mf/use-ref (:name theme))
+        options (map (fn [group]
+                       {:label group
+                        :id group})
+                     theme-groups)
         on-update-group (partial on-change-field :group)
-        on-update-name (partial on-change-field :name)]
+        on-update-name
+        (mf/use-fn
+        (fn [event]
+          (let [value (.-value (.-currentTarget event))]
+            (on-change-field :name value)
+            (mf/set-ref-val! theme-name-ref value)
+        )))]
 
     [:div {:class (stl/css :edit-theme-inputs-wrapper)}
-     [:p "Dropdown open: " (str dropdown-open?)]
      [:div {:class (stl/css :group-input-wrapper)}
-     [:> combobox* {:id ::groups-dropdown
-                    :options (clj->js (map (fn [group]
-                                     {:label group
-                                     :id group})
-                                  theme-groups))
-                    :on-change (fn [value]
-                                 (js/console.log "value " value)
-                                 (set! (.-value (mf/ref-val group-input-ref)) value)
-                                 (on-update-group value))}]
+     [:label {:for "groups-dropdown"} "Group"]
+     [:> combobox* {:id (dm/str "groups-dropdown")
+                    :default-selected (:group theme)
+                    :options (clj->js options)
+                    :on-change on-update-group}]]
 
-      (when dropdown-open?
-        [:& wtco/dropdown-select {:id ::groups-dropdown
-                                  :shortcuts-key ::groups-dropdown
-                                  :options (map (fn [group]
-                                                  {:label group
-                                                   :value group})
-                                                theme-groups)
-                                  :on-select (fn [{:keys [value]}]
-                                               (js/console.log value)
-                                               (set! (.-value (mf/ref-val group-input-ref)) value)
-                                               (on-update-group value))
-                                  :on-close on-close-dropdown}])
-      [:& labeled-input {:label "Group"
-                         :input-props {:ref group-input-ref
-                                       :default-value (:group theme)
-                                       :on-change (comp on-update-group dom/get-target-val)}
-                         :render-right (when (seq theme-groups)
-                                         (mf/fnc drop-down-button []
-                                           [:button {:class (stl/css :group-drop-down-button)
-                                                     :type "button"
-                                                     :on-click (fn [e]
-                                                                 (dom/stop-propagation e)
-                                                                 (on-toggle-dropdown))}
-                                            [:> icon* {:icon-id "arrow-down"}]]))}]]
      [:div {:class (stl/css :group-input-wrapper)}
-      [:& labeled-input {:label "Theme"
-                         :input-props {:default-value (:name theme)
-                                       :on-change (comp on-update-name dom/get-target-val)}}]]]))
+      [:> input-tokens* {
+        :id "theme-input"
+        :label "Theme"
+        :type "text"
+        :on-change on-update-name
+        :value (mf/ref-val theme-name-ref)}]]]))
 
 (mf/defc theme-modal-buttons
   [{:keys [close-modal on-save-form disabled?] :as props}]
@@ -338,6 +327,8 @@
          (fn [prefixed-set-path-str]
            (let [set-name (ctob/prefixed-set-path-string->set-name-string prefixed-set-path-str)]
              (on-toggle-token-set set-name))))]
+
+    (js/console.log (clj->js theme))
 
     [:div {:class (stl/css :themes-modal-wrapper)}
      [:> heading* {:level 2 :typography "headline-medium" :class (stl/css :themes-modal-title)}
