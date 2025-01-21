@@ -178,7 +178,7 @@
                                      (mod (+ index 1) len))]
                      (handle-focus-change options focused* new-index options-nodes-refs))
 
-                   (or (kbd/space? event) (kbd/enter? event))
+                   (kbd/enter? event)
                    (when (deref open*)
                      (dom/prevent-default event)
                      (handle-selection focused* selected* open*)

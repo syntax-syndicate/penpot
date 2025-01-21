@@ -38,6 +38,9 @@ export default {
       { id: "December", label: "December" },
     ],
     defaultSelected: "February",
+    onChange: (value) => {
+      console.log(value);
+    },
   },
   parameters: {
     controls: {

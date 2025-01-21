@@ -160,6 +160,7 @@
 ;; todo: follow & delete dropdown-open? on-close-dropdown on-toggle-dropdown]
 ;; todo: translations
 ;; todo group with space
+;; todo empty names??
 (mf/defc theme-inputs
   [{:keys [theme dropdown-open? on-close-dropdown on-toggle-dropdown on-change-field]}]
   (let [theme-groups (mf/deref refs/workspace-token-theme-groups)
