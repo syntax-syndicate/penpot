@@ -48,6 +48,7 @@
                         (update :data feat.fdata/process-objects (partial into {}))
                         (fmg/migrate-file)))))))))
 
+;; FIXME: remove/replace with file-gc/persist-file!
 (defn update-file!
   [system {:keys [id] :as file}]
   (let [conn (db/get-connection system)
