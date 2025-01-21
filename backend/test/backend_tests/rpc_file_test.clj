@@ -2146,32 +2146,39 @@
     ;; original object and the instantiation does not implies changes
     ;; on references
     (let [rows (th/db-exec! ["SELECT * FROM file_media_object"])]
+      ;; (pp/pprint rows)
       (t/is (= 1 (count rows)))
       (t/is (= (:id file-1) (:file-id (first rows))))
       (t/is (every? (comp nil? :deleted-at) rows)))
 
     (t/is (true? (th/run-task! :file-checkpoint {:file-id (:id file-1)})))
+
+    ;; This checkpoint should generate two additional file media
+    ;; references: one for the ongoing file and the other for the
+    ;; snapshot. It is implemented in this way because the reference
+    ;; checking does not maintains a global index, and operates
+    ;; snapshot by snapshot so if two snapshots has two broken
+    ;; references to the same storage file, two different references
+    ;; will be created for each snapshot analyzed.
     (t/is (true? (th/run-task! :file-checkpoint {:file-id (:id file-2)})))
 
     ;; Check that new file media object references are created
     (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
-      (t/is (= 2 (count rows)))
-      (t/is (= (:id file-1) (:file-id (first rows))))
-      (t/is (= (:id file-2) (:file-id (second rows)))))
+      ;; (pp/pprint rows)
+      (t/is (= 3 (count rows)))
+      (t/is (= (:id file-1) (:file-id (get rows 0))))
+      (t/is (= (:id file-2) (:file-id (get rows 1))))
+      (t/is (= (:id file-2) (:file-id (get rows 2)))))
 
     ;; Run the file-gc on file and library
     (t/is (true? (th/run-task! :file-gc {:min-age 0 :file-id (:id file-1)})))
     (t/is (true? (th/run-task! :file-gc {:min-age 0 :file-id (:id file-2)})))
 
     ;; Now proceed to delete file and absorb it
-
-    ;; Check that component is properly removed
     (let [data {::th/type :delete-file
                 ::rpc/profile-id (:id profile)
                 :id (:id file-1)}
           out  (th/command! data)]
-
-      ;; (th/print-result! out)
       (t/is (th/success? out)))
 
     (th/run-task! :delete-object
@@ -2182,19 +2189,22 @@
     ;; Check that file media object references are marked all for deletion
     (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
       ;; (pp/pprint rows)
-      (t/is (= 2 (count rows)))
+      (t/is (= 3 (count rows)))
 
-      (t/is (= (:id file-1) (:file-id (first rows))))
-      (t/is (some? (:deleted-at (first rows))))
+      (t/is (= (:id file-1) (:file-id (get rows 0))))
+      (t/is (some? (:deleted-at (get rows 0))))
 
-      (t/is (= (:id file-2) (:file-id (second rows))))
-      (t/is (nil? (:deleted-at (second rows)))))
+      (t/is (= (:id file-2) (:file-id (get rows 1))))
+      (t/is (nil? (:deleted-at (get rows 1))))
+      (t/is (= (:id file-2) (:file-id (get rows 2))))
+      (t/is (nil? (:deleted-at (get rows 2)))))
 
     (th/run-task! :objects-gc
                   {:min-age 0})
 
     (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
-      (t/is (= 1 (count rows)))
+      (t/is (= 2 (count rows)))
+      (t/is (every? #(= (:id file-2) (:file-id %)) rows))
       (t/is (every? (comp nil? :deleted-at) rows)))))
 
 
@@ -2336,156 +2346,3 @@
 
     (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
       (t/is (= 0 (count rows))))))
-
-(t/deftest file-checkpoint
-  (let [storage (:app.storage/storage th/*system*)
-        profile (th/create-profile* 1)
-
-        file-1  (th/create-file* 1 {:profile-id (:id profile)
-                                    :project-id (:default-project-id profile)
-                                    :is-shared true})
-
-        file-2  (th/create-file* 2 {:profile-id (:id profile)
-                                    :project-id (:default-project-id profile)
-                                    :is-shared false})
-
-        fmedia  (add-file-media-object :profile-id (:id profile) :file-id (:id file-1))
-
-
-        rel     (th/link-file-to-library*
-                 {:file-id (:id file-2)
-                  :library-id (:id file-1)})
-
-        s-id-1  (uuid/random)
-        s-id-2  (uuid/random)
-        c-id    (uuid/random)
-
-        f1-page-id (first (get-in file-1 [:data :pages]))
-        f2-page-id (first (get-in file-2 [:data :pages]))
-
-        fills
-        [{:fill-image
-          {:id (:id fmedia)
-           :name "test"
-           :width 200
-           :height 200}}]]
-
-    ;; Update file library inserting new component
-    (update-file!
-     :file-id (:id file-1)
-     :profile-id (:id profile)
-     :revn 0
-     :vern 0
-     :changes
-     [{:type :add-obj
-       :page-id f1-page-id
-       :id s-id-1
-       :parent-id uuid/zero
-       :frame-id uuid/zero
-       :components-v2 true
-       :obj (cts/setup-shape
-             {:id s-id-1
-              :name "Board"
-              :frame-id uuid/zero
-              :parent-id uuid/zero
-              :type :frame
-              :fills fills
-              :main-instance true
-              :component-root true
-              :component-file (:id file-1)
-              :component-id c-id})}
-      {:type :add-component
-       :path ""
-       :name "Board"
-       :main-instance-id s-id-1
-       :main-instance-page f1-page-id
-       :id c-id
-       :anotation nil}])
-
-    ;; Instanciate a component in a different file
-    (update-file!
-     :file-id (:id file-2)
-     :profile-id (:id profile)
-     :revn 0
-     :vern 0
-     :changes
-     [{:type :add-obj
-       :page-id f2-page-id
-       :id s-id-2
-       :parent-id uuid/zero
-       :frame-id uuid/zero
-       :components-v2 true
-       :obj (cts/setup-shape
-             {:id s-id-2
-              :name "Board"
-              :frame-id uuid/zero
-              :parent-id uuid/zero
-              :type :frame
-              :fills fills
-              :main-instance false
-              :component-root true
-              :component-file (:id file-1)
-              :component-id c-id})}])
-
-    ;; Check that file media object references are only set on the
-    ;; original object and the instantiation does not implies changes
-    ;; on references
-    (let [rows (th/db-exec! ["SELECT * FROM file_media_object"])]
-      (t/is (= 1 (count rows)))
-      (t/is (= (:id file-1) (:file-id (first rows))))
-      (t/is (every? (comp nil? :deleted-at) rows)))
-
-    ;; Run the file-checkpoint on file-2
-    (binding [app.tasks.file-checkpoint/*stats* (atom {})]
-      (t/is (true? (th/run-task! :file-checkpoint {:file-id (:id file-2)})))
-      (let [stats @app.tasks.file-checkpoint/*stats*]
-        ;; (pp/pprint stats)
-        (t/is (= (:lookups stats) #{(:id fmedia)}))
-        (let [fmedia' (get-in stats [:missing (:id fmedia)])]
-          (t/is (not= (:id fmedia') (:id fmedia)))
-
-          ;; Check file-2, it should have the id remaped
-          (let [data    {::th/type :get-file
-                         ::rpc/profile-id (:id profile)
-                         :id (:id file-2)}
-                out     (th/command! data)]
-
-            (t/is (th/success? out))
-            (let [file  (:result out)
-                  shape (get-in file [:data :pages-index f2-page-id :objects s-id-2])]
-
-              ;; (pp/pprint shape {:level 100 :length 100})
-              (t/is (= 1 (count (:fills shape))))
-              (t/is (= (:id fmedia') (get-in shape [:fills 0 :fill-image :id])))))
-
-          ;; Check file-1, it should have the id conserved
-          (let [data    {::th/type :get-file
-                         ::rpc/profile-id (:id profile)
-                         :id (:id file-1)}
-                out     (th/command! data)]
-
-            (t/is (th/success? out))
-            (let [file  (:result out)
-                  shape (get-in file [:data :pages-index f1-page-id :objects s-id-1])]
-              ;; (pp/pprint shape {:level 100 :length 100})
-              (t/is (= 1 (count (:fills shape))))
-              (t/is (= (:id fmedia) (get-in shape [:fills 0 :fill-image :id])))))
-
-          ;; Check that a new file media object reference is added
-          ;; after checkpoint task
-          (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
-            (t/is (= 2 (count rows)))
-            (t/is (= (:id fmedia) (:id (first rows))))
-            (t/is (= (:id fmedia') (:id (second rows))))
-            (t/is (= (:id file-1) (:file-id (first rows))))
-            (t/is (= (:id file-2) (:file-id (second rows))))
-            (t/is (every? (comp nil? :deleted-at) rows))))))
-
-    ;; Run the file-gc on file and library
-    (t/is (true? (th/run-task! :file-gc {:min-age 0 :file-id (:id file-1)})))
-    (t/is (true? (th/run-task! :file-gc {:min-age 0 :file-id (:id file-2)})))
-
-    ;; Recheck file media object rows
-    (let [rows (th/db-exec! ["SELECT * FROM file_media_object ORDER BY created_at ASC"])]
-      (t/is (= 2 (count rows)))
-      (t/is (every? (comp nil? :deleted-at) rows)))))

@@ -8,14 +8,14 @@
   "A  main namespace for server repl."
   (:refer-clojure :exclude [parse-uuid])
   (:require
+   [app.binfile.common :refer [persist-file! decode-file]]
    [app.common.data :as d]
    [app.common.files.validate :as cfv]
    [app.db :as db]
    [app.features.components-v2 :as feat.comp-v2]
    [app.main :as main]
    [app.rpc.commands.files :as files]
-   [app.rpc.commands.files-snapshot :as fsnap]
-   [app.tasks.file-gc :refer [persist-file! decode-file]]))
+   [app.rpc.commands.files-snapshot :as fsnap]))
 
 (def ^:dynamic *system* nil)
 
